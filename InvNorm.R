@@ -26,5 +26,5 @@ inv_norm = function(unif, mu = 0, var = 1)
         + r * (c_[6] + r * (c_[7] + r * (c_[8] + r * c_[9])))))));
         if (y < 0) out = -out;
     }
-    return(out * var + mu);
+    return(out * sqrt(var) + mu);
 }

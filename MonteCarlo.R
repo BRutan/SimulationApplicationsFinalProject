@@ -1,7 +1,8 @@
 ####################
 # MonteCarlo.R
 ####################
-# Generic Monte Carlo simulation.
+# Description:
+# * Generic Monte Carlo simulation.
 
 if (!exists("number_generator", mode = "function") && !exists("number_array_generator", mode = "function")) source("Generator.R");
 if (!exists("inv_norm", mode = "function")) source("InvNorm.R")

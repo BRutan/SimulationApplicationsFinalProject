@@ -2,9 +2,17 @@
 # Main.R
 ####################
 # Description:
-# * Pull in SPY data, fit jump-diffusion process parameters
-# to data using Maximum Likelihood Estimation, prices
-# option on SPY using jump diffusion process with parameters.
+# 1) Pull in SPY and WTI data, plot qq plot and bins. 
+# 2) Fit jump-diffusion process parameters for SPY and WTI using regression method.
+# 3) Generate large number of SPY and WTI sample paths.
+# 4) Price option on SPY, using sample paths.
 
-data = read.csv("SPY.csv");
+source("Plotting.R");
+source("InvNorm.R");
 
+data = read.csv("JumpData.csv");
+
+# Demonstrate that data follows jump process:
+spy_qq = qq_plot()
+
+# Fit jump-diffusion process parameters to data using regression approach:

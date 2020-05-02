@@ -1,7 +1,8 @@
 ####################
 # OptionStrategies.R
 ####################
-# 
+# Description:
+# *
 
 source("BlackScholes.R");
 source("Generator.R");

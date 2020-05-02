@@ -1,0 +1,29 @@
+
+
+```{r}
+#library(ggplot2)
+#read in and clean up data
+sdata <- read.csv(file = 'SampleData.csv', header = TRUE)
+sdata[,1] <- as.Date(sdata[,1], format=("%m/%d/%Y"))
+#dates are now index, get out of df
+
+graph <- ggplot() +
+     geom_line(data = sdata, aes(x = sdata[,1], y = sdata[,2]), color = "blue")+
+     geom_line(data = sdata, aes(x = sdata[,1], y = sdata[,3]), color = "red") +
+     geom_line(data = sdata, aes(x = sdata[,1], y = sdata[,4]), color = "orange") +
+     geom_line(data = sdata, aes(x = sdata[,1], y = sdata[,5]), color = "green") +
+     geom_line(data = sdata, aes(x = sdata[,1], y = sdata[,6]), color = "aquamarine") +
+     geom_line(data = sdata, aes(x = sdata[,1], y = sdata[,7]), color = "black") +
+     geom_line(data = sdata, aes(x = sdata[,1], y = sdata[,8]), color = "dark green") +
+     geom_line(data = sdata, aes(x = sdata[,1], y = sdata[,9]), color = "purple") +
+     xlab("Dates") +
+     ylab("Price") +
+     ggtitle("Sample Paths") +
+     scale_x_date(date_labels = "%b %Y", breaks = ("1 month"))
+
+
+print(graph)
+
+
+
+```
