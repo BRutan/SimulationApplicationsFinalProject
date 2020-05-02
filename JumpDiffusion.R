@@ -7,26 +7,77 @@
 source("InvNorm.R");
 source("Generator.R");
 
-jump_gbm_pdf = function(s_t, s_0, t, n, params)
+jump_dates = function(returns_data, icdf, plot_r2 = FALSE)
 {
+    # ***************************
+    # Use R^2 maximization approach of observation quantiles vs norm quantiles 
+    # to determine which observations are "jump" observations (i.e. # of jumps <> 0).
+    # ***************************
     # Inputs:
-    # * s_t: Underlying price at time t in future.
-    # * s_0: Starting underlying price.
-    # * t: Time in future for s(t).
-    # * n: Number of jumps between [0, t].
-    # * params: vector with following values
-    # [lambda, a, b, mu, sig].
-    lambda = params[1];
-    a = params[2];
-    b = params[3];
-    mu = params[4];
-    sigma = params[5];
-    
-    mu_ln = log(s_0) + (mu - .5 * sigma * sigma) * t + a * n;
-    var_ln = sigma * sigma * t + b * b * n;
-    x_t = log(s_0) + (mu - .5 * sigma * sigma) * t + sigma * sqrt(t);
+    # * returns_data: data frame with [date, return] to fit to jump diffusion.
+    # * icdf: Inverse cumulative distribution to compare quantiles.
+    # ***************************
+    # Outputs: 
+    # * vector of dates corresponding to jump observations.
+
+    if (plot_r2 == TRUE)
+    {
+        r_2_track = numeric(length(returns_data) - 2);
+        r_2_index = 1;
+    }
+    # Generate quantile Data:
+    quantiles = gen_qq(returns_data, icdf);
+    # Find maximum r_squared using iterative approach:
+    max_r_2 = 0;
+    data_size = length(log_rets);
+    front_index = 1;
+    end_index = length(log_rets);
+    while (data_size >= 2)
+    {
+        front_qq_data = quantiles[front_index + 1:end_index,];
+        end_qq_data = quantiles[front_index:end_index - 1,];
+        model_first = lm(, front_qq_data);
+
+        if (plot_r2 == TRUE)
+        {
+            r_2_track[r_2_index] = chosen_r_2;
+            r_2_index = r_2_index + 1;
+        }
+        data_size = data_size - 1;
+    }
+
 
 }
+
+gen_qq = function(data, icdf)
+{
+    # Inputs:
+    # * data: DataFrame with $returns as sole column.
+    # * icdf: Inverse cumulative distribution function to generate quantiles of theoretical
+    # dataset, for comparison purposes.
+    # Outputs:
+    # * Generate DataFrame with [probability, return_quantile, dist_quantile] as columns.
+    sorted = data[order(data$returns),];
+    data_len = nrow(data);
+    # Discretize the target distribution:
+    n_bins = data_len + 1;
+    probabilities = numeric(data_len);
+    dist_quantiles = numeric(data_len);
+    data_quantiles = numeric(data_len);
+    bin = 1;
+    # Generate targe distribution quantiles and title quantiles:
+    while (bin < n_bins)
+    {
+        prob = bin / n_bins;
+        probabilities[bin] = prob;
+        dist_quantiles[bin] = icdf(prob);
+        data_quantiles[bin] = quantile(sorted, prob, na.rm = TRUE);
+        bin = bin + 1;
+    }
+    df = data.frame("probability" = probabilities, "return_quantile" = data_quantiles, "dist_quantile" = dist_quantiles);
+    return(df);
+}
+
 
 jump_gbm_gen = function(params, rand_norm, numsteps, seed_1 = as.numeric(Sys.time()), seed_2 = as.numeric(Sys.time()) - 100)
 {
