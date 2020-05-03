@@ -33,12 +33,20 @@ ggsave("WTI LogReturns QQ Plot.png", wti_qq);
 ggsave("SPY Log Returns Plot.png", spy_log_ret_plot);
 ggsave("WTI Log Returns Plot.png", wti_log_ret_plot);
 
-
 # Fit jump-diffusion process parameters to data using regression approach:
-non_jump_dates_spy = remove_jumps(log_returns_spy, inv_norm, plot_r2 = TRUE);
-non_jump_dates_wti = remove_jumps(log_returns_wti, inv_norm, plot_r2 = TRUE);
+non_jump_info_spy = remove_jump_dates(log_returns_spy, inv_norm, plot_r2 = TRUE);
+non_jump_info_wti = remove_jump_dates(log_returns_wti, inv_norm, plot_r2 = TRUE);
+ggsave("SPY RSq Progression.png", non_jump_info_spy$plot);
+ggsave("WTI RSq Progression.png", non_jump_info_wti$plot);
 
-# Use regression based MLE to estimate GBM parameters:
+# Separate jump observations from non-jump observations:
+gbm_obs_spy = subset(log_returns_spy, (row.names(log_returns_spy) %in% non_jump_info_spy$non_jump_dates));
+gbm_obs_wti = subset(log_returns_spy, (row.names(log_returns_spy) %in% non_jump_info_spy$non_jump_dates));
+jump_obs_spy = subset(log_returns_spy, !(row.names(log_returns_spy) %in% non_jump_info_spy$non_jump_dates));
+jump_obs_wti = subset(log_returns_wti, !(row.names(log_returns_wti) %in% non_jump_info_wti$non_jump_dates));
+
+# Use two-step regression approach to estimate GBM parameters:
+
 
 
 

@@ -4,10 +4,12 @@
 # Description:
 # * SDE and distribution function for MLE.
 
+library("dplyr");
+library("tibble");
 source("InvNorm.R");
 source("Generator.R");
 
-jump_dates = function(returns_data, icdf, plot_r2 = FALSE)
+remove_jump_dates = function(returns_data, icdf, plot_r2 = FALSE)
 {
     # ***************************
     # Use R^2 maximization approach of observation quantiles vs norm quantiles 
@@ -18,35 +20,66 @@ jump_dates = function(returns_data, icdf, plot_r2 = FALSE)
     # * icdf: Inverse cumulative distribution to compare quantiles.
     # ***************************
     # Outputs: 
-    # * vector of dates corresponding to jump observations.
-
-    if (plot_r2 == TRUE)
-    {
-        r_2_track = numeric(length(returns_data) - 2);
-        r_2_index = 1;
-    }
+    # * vector of dates corresponding to jump observations, and R^2 progression plot
+    # if plot_r2 = TRUE.
     # Generate quantile Data:
     quantiles = gen_qq(returns_data, icdf);
+    # Preserve dates:
+    date_indices = data.frame("date" = row.names(quantiles));
+    if (plot_r2 == TRUE)
+    {
+        r_2_track = numeric(nrow(quantiles) - 2);
+        r_2_index = 1;
+    }
     # Find maximum r_squared using iterative approach:
     max_r_2 = 0;
-    data_size = length(log_rets);
+    prev_r_2 = 0;
+    data_size = nrow(quantiles);
     front_index = 1;
-    end_index = length(log_rets);
-    while (data_size >= 2)
+    end_index = data_size;
+    r_2_plot = NULL;
+    non_jump_dates = NULL;
+    curr_non_jump_dates = NULL;
+    while (data_size > 2)
     {
-        front_qq_data = quantiles[front_index + 1:end_index,];
-        end_qq_data = quantiles[front_index:end_index - 1,];
-        model_first = lm(, front_qq_data);
-
+        front_qq_data = slice(quantiles, front_index:end_index - 1);
+        back_qq_data = slice(quantiles, front_index + 1:end_index);
+        r_2_front = cor(front_qq_data$return_quantile, front_qq_data$dist_quantile) ^ 2;
+        r_2_back = cor(back_qq_data$return_quantile, back_qq_data$dist_quantile) ^ 2;
+        if (r_2_front > r_2_back)
+        {
+            # Drop back point since contributes less to R^2 than the front point:
+            chosen_r_2 = r_2_front;
+            curr_non_jump_dates = date_indices[row.names(front_qq_data),];
+            end_index = end_index - 1;
+        }
+        else
+        {
+            # Drop front point:
+            chosen_r_2 = r_2_back;
+            curr_non_jump_dates = date_indices[row.names(back_qq_data),];
+            front_index = front_index + 1;
+        }
+        if (chosen_r_2 >= max_r_2 && chosen_r_2 - prev_r_2 > 0)
+        {
+            max_r_2 = chosen_r_2;
+            non_jump_dates = curr_non_jump_dates;
+        }
         if (plot_r2 == TRUE)
         {
             r_2_track[r_2_index] = chosen_r_2;
             r_2_index = r_2_index + 1;
         }
+        prev_r_2 = chosen_r_2;
         data_size = data_size - 1;
     }
-
-
+    if (plot_r2 == TRUE)
+    {
+        df = data.frame("steps" = seq(1, length(r_2_track)), "r_2s" = r_2_track);
+        r_2_plot = ggplot(data = df, aes(x = df$steps, y = df$r_2s)) + geom_bar(stat = "identity") + ggtitle("R^2 Progression") +
+        xlab("Step Number") + ylab("R^2");
+    }
+    return(list("non_jump_dates" = non_jump_dates, "max_r_w" = max_r_2, "plot" = r_2_plot));
 }
 
 gen_qq = function(data, icdf)
@@ -57,24 +90,26 @@ gen_qq = function(data, icdf)
     # dataset, for comparison purposes.
     # Outputs:
     # * Generate DataFrame with [probability, return_quantile, dist_quantile] as columns.
-    sorted = data[order(data$returns),];
-    data_len = nrow(data);
+    sorted = data[order(data$returns),, drop = FALSE];
+    cleaned_data = na.omit(sorted);
+    data_len = nrow(cleaned_data);
     # Discretize the target distribution:
     n_bins = data_len + 1;
     probabilities = numeric(data_len);
     dist_quantiles = numeric(data_len);
     data_quantiles = numeric(data_len);
     bin = 1;
-    # Generate targe distribution quantiles and title quantiles:
+    # Generate target distribution quantiles and title quantiles:
     while (bin < n_bins)
     {
         prob = bin / n_bins;
         probabilities[bin] = prob;
         dist_quantiles[bin] = icdf(prob);
-        data_quantiles[bin] = quantile(sorted, prob, na.rm = TRUE);
+        data_quantiles[bin] = quantile(cleaned_data$returns, prob, na.rm = TRUE);
         bin = bin + 1;
     }
     df = data.frame("probability" = probabilities, "return_quantile" = data_quantiles, "dist_quantile" = dist_quantiles);
+    row.names(df) = row.names(cleaned_data);
     return(df);
 }
 
