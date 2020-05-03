@@ -7,12 +7,13 @@
 # 3) Generate large number of SPY and WTI sample paths.
 # 4) Price option on SPY, using sample paths.
 
-source("JumpDiffPlotting.R");
 source("InvNorm.R");
+source("JumpDiffPlotting.R");
 source("JumpDiffusion.R");
+source("SDERegressionFit.R")
 
 # Calculate log returns: 
-data = read.csv("JumpData.csv");
+data = read.csv("JumpData_Alt.csv");
 row.names(data) = data$Date;
 data = subset(data, select = c("SPY", "WTI"));
 log_rets = as.data.frame(sapply(data, function(x) diff(log(x))))
@@ -40,13 +41,18 @@ ggsave("SPY RSq Progression.png", non_jump_info_spy$plot);
 ggsave("WTI RSq Progression.png", non_jump_info_wti$plot);
 
 # Separate jump observations from non-jump observations:
-gbm_obs_spy = subset(log_returns_spy, (row.names(log_returns_spy) %in% non_jump_info_spy$non_jump_dates));
-gbm_obs_wti = subset(log_returns_spy, (row.names(log_returns_spy) %in% non_jump_info_spy$non_jump_dates));
-jump_obs_spy = subset(log_returns_spy, !(row.names(log_returns_spy) %in% non_jump_info_spy$non_jump_dates));
-jump_obs_wti = subset(log_returns_wti, !(row.names(log_returns_wti) %in% non_jump_info_wti$non_jump_dates));
+gbm_obs_spy_rets = subset(log_returns_spy, (row.names(log_returns_spy) %in% non_jump_info_spy$non_jump_dates));
+gbm_obs_wti_rets = subset(log_returns_spy, (row.names(log_returns_spy) %in% non_jump_info_spy$non_jump_dates));
+jump_obs_spy_rets = subset(log_returns_spy, !(row.names(log_returns_spy) %in% non_jump_info_spy$non_jump_dates));
+jump_obs_wti_rets = subset(log_returns_wti, !(row.names(log_returns_wti) %in% non_jump_info_wti$non_jump_dates));
+gbm_obs_spy_prices = subset(data[,"SPY",drop=FALSE], (row.names(log_returns_spy) %in% non_jump_info_spy$non_jump_dates));
+gbm_obs_wti_prices = subset(data[,"WTI",drop=FALSE], (row.names(log_returns_wti) %in% non_jump_info_wti$non_jump_dates));
+names(gbm_obs_spy_prices)[names(gbm_obs_spy_prices) == "SPY"] = "prices";
+names(gbm_obs_wti_prices)[names(gbm_obs_wti_prices) == "WTI"] = "prices";
 
 # Use two-step regression approach to estimate GBM parameters:
-
+gbm_params_spy = regression_fit_gbm(gbm_obs_spy_prices);
+gbm_params_wti = regression_fit_gbm(gbm_obs_wti_prices);
 
 
 

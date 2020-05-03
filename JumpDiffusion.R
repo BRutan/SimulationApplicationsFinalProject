@@ -91,7 +91,9 @@ gen_qq = function(data, icdf)
     # Outputs:
     # * Generate DataFrame with [probability, return_quantile, dist_quantile] as columns.
     sorted = data[order(data$returns),, drop = FALSE];
-    cleaned_data = na.omit(sorted);
+    # Remove NAs and infinite returns from set:
+    cleaned_data = data.frame(na.omit(sorted));
+    cleaned_data = cleaned_data[is.finite(cleaned_data$returns),,drop=FALSE];
     data_len = nrow(cleaned_data);
     # Discretize the target distribution:
     n_bins = data_len + 1;
