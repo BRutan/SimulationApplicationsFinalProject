@@ -5,23 +5,40 @@
 # * Fit stochastic differential equation parameters
 # using regression, mle on observed data.
 
+library("rlang");
+
 mle_jump_diff = function(data, gbm_params = NULL)
 {
     # Inputs:
-    # * data: dataframe containing "prices" and "date" arranged in descending order by date.
+    # * data: dataframe containing "prices" and "date".
     data = data[order(as.Date(row.names(data), format = "%m/%d/%Y")),, drop = FALSE];
     log_obs = log(data$prices);
     log_obs_0 = log_obs[1];
     log_obs = log_obs[-1];
     dt = 1 / 252;
-    targetFunc = function(x)
+    if (is.null(gbm_params))
     {
-        # x: [mu, sigma, lambda, beta, nu].
-        x = append(x, c(dt, log_obs_0), length(x));
-        -log_likelihood_sum(log_obs,x,jump_diff_pdf);
+        startParams = c(.02, .3, .5, .5, .2);
+        targetFunc = function(x) {
+            # x: [mu, sigma, lambda, beta, nu].
+            x = append(x, c(dt, log_obs_0), length(x));
+            return(-log_likelihood_sum(log_obs, x, jump_diff_pdf));
+        }
     }
-    results = optim(c(.02, .3, .5, .5, .2), targetFunc);
-    return(results);
+    else
+    {
+        startParams = c(.5, .5, .2);
+        targetFunc = function(x)
+        {
+            # x: [mu, sigma, lambda, beta, nu].
+            x = prepend(x, c(gbm_params[1], gbm_params[2]));
+            x = append(x, c(dt, log_obs_0), length(x));
+            return(-log_likelihood_sum(log_obs, x, jump_diff_pdf));
+        }
+    }
+    results = optim(startParams, targetFunc);
+    maxLL = targetFunc(results$par);
+    return(list("loglikelihood" = maxLL, "params" = results$par));
 }
 
 jump_diff_pdf = function(log_obs, params)
@@ -41,7 +58,7 @@ jump_diff_pdf = function(log_obs, params)
     nu = params[5];
     n = 0;
     prob = 0;
-    while (n < 100) {
+    while (n < 20) {
         mix_sig = sqrt(n * nu + var_);
         norm_exp = -(log_obs - log_obs_0 - mu - n * beta) ^ 2 / (2 * mix_sig * mix_sig);
         prob = prob + exp(-lambda) * (lambda ^ n) / (pi_sqrt_2 * mix_sig * factorial(n)) * exp(norm_exp);
@@ -62,7 +79,7 @@ mle_gbm = function(data)
     # Output:
     # * Return list containing "loglikelihood", "params".
     gbm_pdf = function(obs, params) dnorm(obs, (params[1] + params[2] * params[2]/2) * 1/252, params[2] * sqrt(1/252));
-    targetFunc = function(x) -log_likelihood(data, x, gbm_pdf);
+    targetFunc = function(x) -log_likelihood_sum(data, x, gbm_pdf);
     results = optim(c(.02, .3), targetFunc);
     #params = optimize(targetFunc, c(0, 1), maximum = TRUE);
     maxLL = targetFunc(results$par);

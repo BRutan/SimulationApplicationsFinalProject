@@ -1,5 +1,5 @@
 ####################
-# JumpDiffusion.R
+# JumpDiffusionData.R
 ####################
 # Description:
 # * SDE and distribution function for MLE.
