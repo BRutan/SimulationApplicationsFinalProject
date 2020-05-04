@@ -147,6 +147,7 @@ jump_gbm_gen = function(params, rand_norm, numsteps, seed_1 = as.numeric(Sys.tim
     return (s_0 * exp(r));
 }
 
+
 poiss_icdf = function(lambda, prob)
 {
     # Inputs:

@@ -5,7 +5,7 @@
 # * 
 
 source("InvNorm.R");
-source("JumpDiffusion.R");
+#source("JumpDiffusion.R");
 library(ggplot2);
 
 log_returns_plot = function(log_rets, title = "LogReturns Plot", y_axis_label = "LogReturn", x_axis_label = "Day")
