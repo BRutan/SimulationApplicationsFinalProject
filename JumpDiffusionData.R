@@ -9,6 +9,10 @@ library("tibble");
 source("InvNorm.R");
 source("Generator.R");
 
+jump_data_env = new.env();
+jump_data_env$seed_1 = as.numeric(Sys.time());
+jump_data_env$seed_2 = as.numeric(Sys.time()) - 100;
+
 remove_jump_dates = function(returns_data, icdf, plot_r2 = FALSE)
 {
     # ***************************
@@ -82,71 +86,42 @@ remove_jump_dates = function(returns_data, icdf, plot_r2 = FALSE)
     return(list("non_jump_dates" = non_jump_dates, "max_r_w" = max_r_2, "plot" = r_2_plot));
 }
 
-gen_qq = function(data, icdf)
-{
-    # Inputs:
-    # * data: DataFrame with $returns as sole column.
-    # * icdf: Inverse cumulative distribution function to generate quantiles of theoretical
-    # dataset, for comparison purposes.
-    # Outputs:
-    # * Generate DataFrame with [probability, return_quantile, dist_quantile] as columns.
-    sorted = data[order(data$returns),, drop = FALSE];
-    # Remove NAs and infinite returns from set:
-    cleaned_data = data.frame(na.omit(sorted));
-    cleaned_data = cleaned_data[is.finite(cleaned_data$returns),,drop=FALSE];
-    data_len = nrow(cleaned_data);
-    # Discretize the target distribution:
-    n_bins = data_len + 1;
-    probabilities = numeric(data_len);
-    dist_quantiles = numeric(data_len);
-    data_quantiles = numeric(data_len);
-    bin = 1;
-    # Generate target distribution quantiles and title quantiles:
-    while (bin < n_bins)
-    {
-        prob = bin / n_bins;
-        probabilities[bin] = prob;
-        dist_quantiles[bin] = icdf(prob);
-        data_quantiles[bin] = quantile(cleaned_data$returns, prob, na.rm = TRUE);
-        bin = bin + 1;
-    }
-    df = data.frame("probability" = probabilities, "return_quantile" = data_quantiles, "dist_quantile" = dist_quantiles);
-    row.names(df) = row.names(cleaned_data);
-    return(df);
-}
-
-
-jump_gbm_gen = function(params, rand_norm, numsteps, seed_1 = as.numeric(Sys.time()), seed_2 = as.numeric(Sys.time()) - 100)
+jump_gbm_gen = function(params, rand_norm, numsteps)
 {
     # Generate r.v. obeying geometric brownian motion with jumps.
     # Inputs:
     # * params: vector with following values
-    # [stock_price,risk_free,div_rate,T,imp_vol,strike,lambda,a,b].
+    # [stock_price,mu,dt,imp_vol,strike,lambda,beta,eta].
     # * rand_norm: 
     # * numsteps: # of steps used in discretization.
     s_0 = params[1];
-    rf = params[2];
-    q = params[3];
-    t = params[4];
-    iv = params[5];
-    lambda = params[7];
-    a = params[8];
-    b = params[9];
-    dt = params[4] / numsteps;
-    rand_unif_poiss = number_generator_single(seed_1, seed_2);
-    n = poiss_icdf(lambda, rand_unif_poiss$number);
-    i = 0;
+    mu = params[2];
+    dt = params[3];
+    iv = params[4];
+    lambda = params[6];
+    beta = params[7];
+    eta = params[8];
+    rand_unif_poiss = number_generator_single(jump_data_env$seed_1, jump_data_env$seed_2);
+    jump_data_env$seed_1 = rand_unif_poiss$seed_1;
+    jump_data_env$seed_2 = rand_unif_poiss$seed_2;
+    seed_1 = jump_data_env$seed_1;
+    seed_2 = jump_data_env$seed_2;
+    # Generate random number of jumps:
+    n = poiss_icdf(lambda * dt, rand_unif_poiss$number);
+    i = 1;
     log_y_sum = 0;
-    while (i < n)
+    while (i <= n)
     {
         rand_unif_jump = number_generator_single(seed_1, seed_2);
-        log_y_sum = log_y_sum + inv_norm(rand_unif_jump$number, a, b * b);
+        log_y_sum = log_y_sum + inv_norm(rand_unif_jump$number, beta, eta);
+        seed_1 = rand_unif_jump$seed_1;
+        seed_2 = rand_unif_jump$seed_2;
         i = i + 1;
     }
-    r = (rf - .5 * iv * iv) * dt + rand_norm * iv * sqrt(dt) + log_y_sum;
-    return (s_0 * exp(r));
+    r = (mu + .5 * iv * iv) * dt + rand_norm * iv * sqrt(dt) + (exp(log_y_sum) - 1);
+    params[1] = s_0 * exp(r);
+    return (params);
 }
-
 
 poiss_icdf = function(lambda, prob)
 {
@@ -156,12 +131,14 @@ poiss_icdf = function(lambda, prob)
     # * prob: Probability of observing sought value or below.
     # Output:
     # * poisson(lambda) distributed random value.
-    p = 0
-    n = 0
-    while (p < prob)
+    p = 0;
+    n = 0;
+    pois_prob = ppois(n, lambda, lower.tail = TRUE);
+    while (p + pois_prob < prob)
     {
-        p = p + ppois(n, lambda, lower.tail = TRUE);
+        p = p + pois_prob;
         n = n + 1;
+        pois_prob = ppois(n, lambda, lower.tail = TRUE);
     }
     return(n);
 }

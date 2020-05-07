@@ -30,7 +30,7 @@ number_generator_single = function(seed_1, seed_2)
     if (z < 1) {
         z = z + gen.env$m_1 - 1;
     }
-    out = z * 4.656613E-10
+    out = z * 4.656613E-10;
     return(list("number" = out, "seed_1" = seed_1, "seed_2" = seed_2));
 }
 

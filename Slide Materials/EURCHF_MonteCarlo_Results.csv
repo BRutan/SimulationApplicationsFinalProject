@@ -1,0 +1,26 @@
+Monte Carlo Parameters:,
+S_0,1.06
+Strike,1.06
+T-t,1
+STR_RiskFree,-0.00616
+Mu_GBM,0.000784625
+Sigma_GBM,0.006939031
+Lambda_Jump,1.142403
+Beta_Jump,-0.1266651
+Eta_Jump,-1.01E-08
+Monte Carlo Results:,
+Option_Price:,0.003374292
+Option_StdErr:,0.000147116
+Monte Carlo Parameters:
+S_0,1.06,
+Strike,1.06,
+T-t,0.003968254,
+STR_RiskFree,-0.00616,
+Mu_GBM,0.0007846252,
+Sigma_GBM,0.006939031,
+Lambda_Jump,1.142403,
+Beta_Jump,-0.1266651,
+Eta_Jump,-1.005641e-08,
+Monte Carlo Results:
+Option_Price:,0.003374292,
+Option_StdErr:,0.0001471161,

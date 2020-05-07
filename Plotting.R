@@ -5,8 +5,22 @@
 # * Useful plotting methods for project (log returns, qq plots, sde forecast plots).
 
 source("InvNorm.R");
-source("JumpDiffusionData.R");
-library(ggplot2);
+library("ggplot2");
+library("reshape2");
+
+plot_env = new.env();
+plot_env$line_colors = c("red", "green", "blue", "orange", "purple", "aquamarine");
+
+plot_data = function(data, title = "LogReturns Plot", y_axis_label = "Price", x_axis_label = "Day")
+{
+    # ***************************
+    # Generate price plotusing data.
+    # ***************************
+    graph = ggplot() + geom_line(data = data, aes(x = seq(1,length(data$prices)), y = data$prices), color = "blue");
+    graph = graph + xlab(x_axis_label) + ylab(y_axis_label);
+    graph = graph + ggtitle(title);
+    return(graph);
+}
 
 log_returns_plot = function(data, title = "LogReturns Plot", y_axis_label = "LogReturn", x_axis_label = "Day")
 {
@@ -72,16 +86,53 @@ plot_paths = function(paths, dates = NULL, x_axis_title = "Period", y_axis_title
     # * title: Title for chart.
     # * plotIndex: Index in each element of path to plot.
     getValue = function(elem) elem[plotIndex];
-    graph = ggplot();
+    x = seq(1, length(paths[[1]]));
+    paths_df = data.frame("x" = x);
+    num = 0;
     for (path in paths)
     {
-        path_data = lapply(path, getValue);
-        graph = graph + geom_line(data = sdata, aes(x = sdata[, 1], y = sdata[, 2]), color = "blue");
+        col_index = paste("path_", num, sep = "");
+        data = unlist(lapply(path, getValue));
+        paths_df[[col_index]] = data;
+        num = num + 1;
     }
+    paths_df = melt(paths_df, id = "x");
+    graph = ggplot(paths_df, aes(x = x, y = value, color = variable)) + geom_line();
     graph = graph + xlab(x_axis_title) + ylab(y_axis_title) + ggtitle(title);
     if (!is.null(dates))
     {
         scale_x_date(date_labels = "%b %Y", breaks = ("1 month"));
     }
     return(graph);
+}
+
+gen_qq = function(data, icdf) {
+    # Inputs:
+    # * data: DataFrame with $returns as sole column.
+    # * icdf: Inverse cumulative distribution function to generate quantiles of theoretical
+    # dataset, for comparison purposes.
+    # Outputs:
+    # * Generate DataFrame with [probability, return_quantile, dist_quantile] as columns.
+    sorted = data[order(data$returns),, drop = FALSE];
+    # Remove NAs and infinite returns from set:
+    cleaned_data = data.frame(na.omit(sorted));
+    cleaned_data = cleaned_data[is.finite(cleaned_data$returns),, drop = FALSE];
+    data_len = nrow(cleaned_data);
+    # Discretize the target distribution:
+    n_bins = data_len + 1;
+    probabilities = numeric(data_len);
+    dist_quantiles = numeric(data_len);
+    data_quantiles = numeric(data_len);
+    bin = 1;
+    # Generate target distribution quantiles and title quantiles:
+    while (bin < n_bins) {
+        prob = bin / n_bins;
+        probabilities[bin] = prob;
+        dist_quantiles[bin] = icdf(prob);
+        data_quantiles[bin] = quantile(cleaned_data$returns, prob, na.rm = TRUE);
+        bin = bin + 1;
+    }
+    df = data.frame("probability" = probabilities, "return_quantile" = data_quantiles, "dist_quantile" = dist_quantiles);
+    row.names(df) = row.names(cleaned_data);
+    return(df);
 }
